@@ -1,0 +1,8 @@
+{
+  "name": "clipboard-paste",
+  "version": "0.1.0",
+  "description": "Paste an image, media file or copied files from the system clipboard into the Claude Code prompt",
+  "author": { "name": "Michalis Dobekidis" },
+  "keywords": ["clipboard", "image", "paste", "mod"],
+  "types": "./types/index.d.ts"
+}

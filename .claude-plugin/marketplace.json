@@ -1,0 +1,18 @@
+{
+  "name": "clipboard-image-mod",
+  "owner": { "name": "Michalis Dobekidis" },
+  "metadata": {
+    "description": "Claude Code mods for getting clipboard images, media and files into your prompts",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "clipboard-paste",
+      "source": "./plugins/clipboard-paste",
+      "description": "Paste an image, media file or copied files from the system clipboard into the Claude Code prompt (/paste or the band above the prompt)",
+      "version": "0.1.0",
+      "category": "productivity",
+      "keywords": ["clipboard", "image", "paste", "screenshot", "mod"]
+    }
+  ]
+}
