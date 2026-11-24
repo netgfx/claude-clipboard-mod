@@ -40,8 +40,13 @@ const ATTACHABLE = /^(image|video|audio)\/|^application\/pdf$/
 
 let platform // 'windows' | 'posix', cached until the next reload
 let busy = false // one clipboard read at a time
+let downloadUrls = false // the downloadUrls option: fetch a copied web address, after asking
 
-export function register(on) {
+export function register(on, options) {
+  // Off by default: a copied web address is never fetched unless the person turns
+  // this on, and then only after they agree to the host it would reach.
+  downloadUrls = options?.downloadUrls === true
+
   on('session.start', async ($, e, next) => {
     await detectPlatform($)
     try {
@@ -178,7 +183,7 @@ async function pasteFromClipboard($) {
     const base = 'clip-' + stamp(await $.clock.now())
 
     let found = await runReader($, os, dir, base)
-    if (found.url) found = await download($, os, dir, base, found.url)
+    if (found.url) found = await fetchCopiedUrl($, os, dir, base, found.url)
     if (!found.items.length) {
       const reason = found.reason || 'Nothing on the clipboard can be attached.'
       await update($, note, () => reason)
@@ -254,8 +259,28 @@ async function runReader($, os, dir, base) {
   return { items: Array.isArray(parsed.items) ? parsed.items : parsed.items ? [parsed.items] : [], reason: parsed.reason, url: parsed.url }
 }
 
-// "Copy image address" leaves a URL: fetch it with curl (curl.exe ships with
-// Windows 10 1803+ and macOS), keep it only if it is an image, media or PDF.
+// "Copy image address" leaves a URL on the clipboard. Fetching it reaches that
+// URL's host, so it happens only when the downloadUrls option is on, and only
+// after the person confirms the host in Claude Code's question dialog.
+async function fetchCopiedUrl($, os, dir, base, url) {
+  if (!downloadUrls) {
+    return { items: [], reason: 'The clipboard holds a web address. Downloading copied addresses is off: turn on the downloadUrls option in /config to use it.' }
+  }
+  const host = httpHostOf(url)
+  if (!host) return { items: [], reason: 'The clipboard holds an address that is not http or https, so it was not downloaded.' }
+  let answer = ''
+  try {
+    answer = await $.ui.ask('Download ' + shorten(url, 120) + ' from ' + host + ' with curl?', { header: 'Clipboard', options: ['Download', 'Cancel'] })
+  } catch {
+    answer = '' // dismissed, or no one to ask (a -p run)
+  }
+  if (answer !== 'Download') return { items: [], reason: 'Not downloaded: the download from ' + host + ' was not confirmed.' }
+  return download($, os, dir, base, url)
+}
+
+// Fetches the URL with curl (curl.exe ships with Windows 10 1803+ and macOS):
+// http and https only, at most 50 MB and 30 s, and keeps the file only if it is
+// an image, media file or PDF.
 async function download($, os, dir, base, url) {
   const tmp = joinPath(os, dir, base + '.download')
   let r
@@ -356,6 +381,16 @@ function bytes(n) {
   if (n >= 1024 * 1024) return (n / 1024 / 1024).toFixed(1) + ' MB'
   if (n >= 1024) return Math.round(n / 1024) + ' KB'
   return n + ' B'
+}
+
+// The host of an http or https URL, or '' for anything else
+function httpHostOf(url) {
+  try {
+    const u = new URL(url)
+    return u.protocol === 'http:' || u.protocol === 'https:' ? u.host : ''
+  } catch {
+    return ''
+  }
 }
 
 function shorten(s, max) {

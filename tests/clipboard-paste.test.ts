@@ -140,26 +140,64 @@ test('text on the clipboard explains itself and attaches nothing', async ($, on)
   expect(seen.submitted[0].context).toBeUndefined()
 })
 
-test('a copied image URL is downloaded with curl and kept only if it is media', async ($, on) => {
+// Answers Claude Code's question dialog, which $.ui.ask opens as an AskUserQuestion call
+function answerAsk(on: any, answer: string, asked: string[]) {
+  on('tool.call', ($: any, e: any) => {
+    asked.push(e.questions[0].question)
+    return { result: { answers: { [e.questions[0].question]: answer } } }
+  })
+}
+
+test('with downloadUrls off (the default), a copied URL is never fetched', async ($, on) => {
   const seen = fresh()
+  const asked: string[] = []
+  stubs(on, 'windows', (argv) => (argv[0] === 'powershell' ? JSON.stringify({ items: [], url: 'https://example.com/cat' }) : 'image/jpeg'), seen)
+  answerAsk(on, 'Download', asked)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: 'C:\\work' } as any)
+  await $.command.run({ command: 'paste', args: '' } as any)
+  expect(seen.argv.some((a) => a[0] === 'curl')).toBe(false)
+  expect(asked.length).toBe(0)
+  expect(seen.toasts[0]).toMatch(/downloadUrls option/)
+  expect(seen.fills.length).toBe(0)
+})
+
+test('with downloadUrls on, the host is shown and nothing is fetched without a yes', { options: { downloadUrls: true } }, async ($, on) => {
+  const seen = fresh()
+  const asked: string[] = []
+  stubs(on, 'posix', (argv) => (argv[0] === '/bin/sh' ? JSON.stringify({ items: [], url: 'https://img.example.org/cat.png' }) : 'image/png'), seen)
+  answerAsk(on, 'Cancel', asked)
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' } as any)
+  await $.command.run({ command: 'paste', args: '' } as any)
+  expect(asked[0]).toContain('img.example.org')
+  expect(seen.argv.some((a) => a[0] === 'curl')).toBe(false)
+  expect(seen.toasts[0]).toMatch(/not confirmed/)
+})
+
+test('with downloadUrls on, a confirmed image URL is downloaded with curl and kept only if it is media', { options: { downloadUrls: true } }, async ($, on) => {
+  const seen = fresh()
+  const asked: string[] = []
   stubs(on, 'windows', (argv) => {
     if (argv[0] === 'powershell') return JSON.stringify({ items: [], url: 'https://example.com/cat' })
     if (argv[0] === 'curl') return 'image/jpeg; charset=binary'
     return '        1 file(s) moved.'
   }, seen)
+  answerAsk(on, 'Download', asked)
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: 'C:\\work' } as any)
   await $.command.run({ command: 'paste', args: '' } as any)
+  expect(asked[0]).toBe('Download https://example.com/cat from example.com with curl?')
   const curl = seen.argv.find((a) => a[0] === 'curl')!
   expect(curl[curl.length - 1]).toBe('https://example.com/cat')
   expect(curl).toContain('=http,https')
+  expect(curl).toContain('--max-filesize')
   const move = seen.argv.find((a) => a[0] === 'cmd')!
   expect(move[move.length - 1]).toMatch(/\\clip-\d{8}-\d{6}-\d{3}\.jpg$/)
   expect(seen.fills[0].text).toMatch(/^\[clip#1 clip-.*\.jpg\] $/)
 })
 
-test('a copied URL that is a web page is refused', async ($, on) => {
+test('with downloadUrls on, a confirmed URL that is a web page is refused', { options: { downloadUrls: true } }, async ($, on) => {
   const seen = fresh()
   stubs(on, 'posix', (argv) => (argv[0] === '/bin/sh' ? JSON.stringify({ items: [], url: 'https://example.com/' }) : argv[0] === 'curl' ? 'text/html; charset=UTF-8' : ''), seen)
+  answerAsk(on, 'Download', [])
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' } as any)
   await $.command.run({ command: 'paste', args: '' } as any)
   expect(seen.toasts[0]).toMatch(/text\/html, not an image/)

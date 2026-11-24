@@ -9,5 +9,13 @@
   "license": "MIT",
   "keywords": ["clipboard", "image", "paste", "screenshot", "mod"],
   "network": { "hosts": [] },
+  "userConfig": {
+    "downloadUrls": {
+      "type": "boolean",
+      "title": "Download copied web addresses",
+      "description": "When the clipboard holds an http or https address (Copy image address), ask before downloading it with curl and attach it if it is an image, media file or PDF. Downloading reaches the address's host, which sees your IP address and the URL. Off: a copied address is never fetched.",
+      "default": false
+    }
+  },
   "types": "./types/index.d.ts"
 }
