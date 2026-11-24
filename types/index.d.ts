@@ -1,6 +1,6 @@
 declare module 'claude-code' {
   interface PluginState {
-    'clipboard-paste': {
+    'powermods-clipboard': {
       // Items read from the clipboard and waiting for the next prompt
       pending: Array<{
         id: number

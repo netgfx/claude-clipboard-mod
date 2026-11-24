@@ -1,7 +1,7 @@
 import { expect, mock, test } from 'claude-code/testing'
 
 const BAND = {
-  plugin: 'clipboard-paste',
+  plugin: 'powermods-clipboard',
   component: 'AbovePrompt',
   requestId: 'single',
   viewport: { columns: 140, rows: 40 },

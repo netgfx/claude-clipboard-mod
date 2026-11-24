@@ -1,8 +1,13 @@
 {
-  "name": "clipboard-paste",
-  "version": "0.1.0",
+  "name": "powermods-clipboard",
+  "displayName": "Clipboard Paste",
+  "version": "0.2.0",
   "description": "Paste an image, media file or copied files from the system clipboard into the Claude Code prompt",
-  "author": { "name": "Michalis Dobekidis" },
-  "keywords": ["clipboard", "image", "paste", "mod"],
+  "author": { "name": "Michael Dobekidis", "email": "djmid71@gmail.com", "url": "https://github.com/netgfx" },
+  "homepage": "https://github.com/netgfx/claude-clipboard-mod",
+  "repository": "https://github.com/netgfx/claude-clipboard-mod",
+  "license": "MIT",
+  "keywords": ["clipboard", "image", "paste", "screenshot", "mod"],
+  "network": { "hosts": [] },
   "types": "./types/index.d.ts"
 }

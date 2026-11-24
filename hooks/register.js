@@ -13,9 +13,9 @@
 import { atom, read, update } from 'claude-code'
 import { WINDOWS_READER, MAC_READER, POSIX_READER } from './readers.js'
 
-const pending = atom({ plugin: 'clipboard-paste', key: 'pending' }, [])
-const counter = atom({ plugin: 'clipboard-paste', key: 'counter' }, 0)
-const note = atom({ plugin: 'clipboard-paste', key: 'note' }, '')
+const pending = atom({ plugin: 'powermods-clipboard', key: 'pending' }, [])
+const counter = atom({ plugin: 'powermods-clipboard', key: 'counter' }, 0)
+const note = atom({ plugin: 'powermods-clipboard', key: 'note' }, '')
 
 const MARKER = /\[clip#(\d+)[^\]\n]*\]/g
 const MAX_DOWNLOAD_BYTES = '52428800' // 50 MiB, for "copy image address" URLs
