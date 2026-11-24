@@ -7,6 +7,7 @@
   "homepage": "https://github.com/netgfx/claude-clipboard-mod",
   "repository": "https://github.com/netgfx/claude-clipboard-mod",
   "license": "MIT",
+  "privacyPolicyUrl": "https://github.com/netgfx/claude-clipboard-mod/blob/main/PRIVACY.md",
   "keywords": ["clipboard", "image", "paste", "screenshot", "mod"],
   "network": { "hosts": [] },
   "userConfig": {
