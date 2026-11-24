@@ -153,8 +153,15 @@ function run(argv) {
 }
 `
 
-// POSIX entry point: $1 dir, $2 base, $3 the macOS reader. macOS runs the
-// JXA reader; Linux uses wl-paste (Wayland) or xclip (X11) for images.
+// POSIX entry point, fixed text that register.js runs as:
+//   /bin/sh -c POSIX_READER sh <dir> <base> <MAC_READER>
+// The values arrive as the positional arguments $1 (capture folder), $2 (file
+// name) and $3 (the macOS reader's source), never inside this text, and every
+// use is quoted. It creates the capture folder with a .gitignore of '*'. On
+// macOS it hands over to `osascript -l JavaScript -e "$3" "$dir" "$base"`. On
+// Linux it saves a PNG with `wl-paste --type image/png` (Wayland) or
+// `xclip -selection clipboard -t image/png -o` (X11), after checking with
+// `wl-paste --list-types` or `xclip ... -t TARGETS -o` that one is there.
 export const POSIX_READER = `
 dir="$1"; base="$2"
 mkdir -p "$dir" || { printf '{"items":[],"reason":"Could not create the capture folder."}\\n'; exit 0; }

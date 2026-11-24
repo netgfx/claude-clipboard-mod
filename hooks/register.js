@@ -79,7 +79,11 @@ export function register(on, options) {
     return {}
   })
 
-  // On send: swap markers for real paths and tell Claude how to open them
+  // On send: swap markers for real paths and tell Claude how to open them. The
+  // prompt is changed only when clipboard items are waiting: each [clip#N name]
+  // marker becomes [clipboard <kind> #N: <path>], and one context note lists the
+  // items and asks Claude to open them with Read. Slash commands and prompts from
+  // other mods pass through untouched.
   on('prompt.submit', async ($, e, next) => {
     if (e.origin?.kind === 'plugin' || /^\s*\//.test(e.text)) return next(e)
     const items = await read($, pending)
@@ -98,7 +102,7 @@ export function register(on, options) {
     await update($, pending, () => [])
     await update($, note, () => '')
     return next({ ...e, text, context: [...(e.context ?? []), contextFor(chosen)] })
-  })
+  }).catch(($, e, next) => next(e)) // fail open: if the hook throws, the prompt goes as typed
 
   // The band above the prompt: what's waiting, plus paste and clear buttons
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
