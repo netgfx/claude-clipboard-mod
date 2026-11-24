@@ -11,7 +11,7 @@ const BAND = {
 const ENGINE_DRAWING = { type: 'Text', props: {}, children: ['drawn by Claude Code'] }
 
 // Shared stubs. Every stub must be registered before the first call on $.
-function stubs(on: any, os: 'windows' | 'posix', reader: (argv: string[]) => string, seen: { argv: string[][]; fills: any[]; toasts: string[]; submitted: any[] }) {
+function stubs(on: any, os: 'windows' | 'posix', reader: (argv: string[]) => string, seen: { argv: string[][]; envs: any[]; fills: any[]; toasts: string[]; submitted: any[] }) {
   mock.clock(on, { now: Date.UTC(2026, 9, 14, 12, 0, 0) })
   on('session.cwd', () => ({ value: os === 'windows' ? 'C:\\work\\app' : '/work/app' }))
   on('env.get', () => ({ value: os === 'windows' ? 'Windows_NT' : undefined }))
@@ -23,6 +23,7 @@ function stubs(on: any, os: 'windows' | 'posix', reader: (argv: string[]) => str
   })
   on('process.run', ($: any, e: any) => {
     seen.argv.push([...e.argv])
+    seen.envs.push(e.init?.env)
     return { value: { exitCode: 0, stdout: reader([...e.argv]), stderr: '' } }
   })
   on('prompt.fill', ($: any, e: any) => {
@@ -37,7 +38,7 @@ function stubs(on: any, os: 'windows' | 'posix', reader: (argv: string[]) => str
   on('session.start', () => ({ cwd: os === 'windows' ? 'C:\\work' : '/work' }))
 }
 
-const fresh = () => ({ argv: [] as string[][], fills: [] as any[], toasts: [] as string[], submitted: [] as any[] })
+const fresh = () => ({ argv: [] as string[][], envs: [] as any[], fills: [] as any[], toasts: [] as string[], submitted: [] as any[] })
 
 for (const os of ['windows', 'posix'] as const) {
   test('a clipboard image becomes a marker, then a path plus Read instructions (' + os + ')', async ($, on) => {
@@ -53,9 +54,15 @@ for (const os of ['windows', 'posix'] as const) {
 
     // Right launcher, no shell string with user data in it
     if (os === 'windows') {
-      expect(seen.argv[0][0]).toBe('powershell')
-      expect(seen.argv[0]).toContain('-STA')
-      expect(seen.argv[0]).toContain('-EncodedCommand')
+      // The readable script runs with -Command; the folder and name travel in the environment
+      expect(seen.argv[0].slice(0, 5)).toEqual(['powershell', '-NoProfile', '-NonInteractive', '-STA', '-Command'])
+      expect(seen.argv[0].length).toBe(6)
+      expect(seen.argv[0][5]).toContain('$dir = $env:CP_DIR')
+      expect(seen.argv[0][5]).not.toContain('clipboard-paste')
+      expect(seen.argv[0].join(' ')).not.toMatch(/EncodedCommand|ExecutionPolicy|Bypass/)
+      expect(seen.envs[0].CP_DIR).toBe('C:\\work\\app\\.claude\\clipboard-paste')
+      // The name is in local time, so only its shape is checked
+      expect(seen.envs[0].CP_BASE).toMatch(/^clip-\d{8}-\d{6}-\d{3}$/)
     } else {
       expect(seen.argv[0][0]).toBe('/bin/sh')
       expect(seen.argv[0][4]).toBe('/work/app/.claude/clipboard-paste')

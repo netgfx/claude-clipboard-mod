@@ -5,10 +5,14 @@
 // address; register.js downloads it with curl. No $ calls here: these are
 // plain strings, so the hooks module stays the only place that touches $.
 
-// Windows PowerShell 5.1 (ships with every Windows). Run with -STA: the
-// clipboard API needs a single-threaded apartment. $dir and $base are
-// prepended by register.js as single-quoted literals.
+// Windows PowerShell 5.1 (ships with every Windows). register.js runs this
+// fixed text as: powershell -NoProfile -NonInteractive -STA -Command WINDOWS_READER
+// -STA because the clipboard API needs a single-threaded apartment. The capture
+// folder and file name arrive in the environment variables CP_DIR and CP_BASE,
+// never inside the script.
 export const WINDOWS_READER = `
+$dir = $env:CP_DIR
+$base = $env:CP_BASE
 $ErrorActionPreference = 'Stop'
 # Otherwise "Preparing modules for first use" arrives as CLIXML on stdout
 $ProgressPreference = 'SilentlyContinue'

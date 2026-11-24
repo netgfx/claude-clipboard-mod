@@ -232,13 +232,17 @@ async function pasteFromClipboard($) {
 }
 
 async function runReader($, os, dir, base) {
+  // Windows: the readable WINDOWS_READER script, with the folder and file name in
+  // environment variables. macOS and Linux: POSIX_READER through /bin/sh, with the
+  // folder, the file name and the macOS reader as its positional arguments $1-$3.
+  // No value is ever spliced into a script's text.
   const argv = os === 'windows'
-    ? ['powershell', '-NoProfile', '-NonInteractive', '-STA', '-ExecutionPolicy', 'Bypass', '-EncodedCommand',
-        encodePowerShell('$dir = ' + psQuote(dir) + '\n$base = ' + psQuote(base) + '\n' + WINDOWS_READER)]
+    ? ['powershell', '-NoProfile', '-NonInteractive', '-STA', '-Command', WINDOWS_READER]
     : ['/bin/sh', '-c', POSIX_READER, 'sh', dir, base, MAC_READER]
+  const env = os === 'windows' ? { CP_DIR: dir, CP_BASE: base } : undefined
   let r
   try {
-    r = await $.process.run(argv, { timeoutMs: 20_000 })
+    r = await $.process.run(argv, { timeoutMs: 20_000, ...(env ? { env } : {}) })
   } catch (err) {
     return { items: [], reason: 'Could not start the clipboard reader: ' + err.message }
   }
@@ -356,31 +360,4 @@ function bytes(n) {
 
 function shorten(s, max) {
   return s.length <= max ? s : s.slice(0, max - 1) + '…'
-}
-
-function psQuote(s) {
-  return "'" + String(s).replace(/'/g, "''") + "'"
-}
-
-// -EncodedCommand takes base64 of UTF-16LE: no quoting rules to get wrong
-function encodePowerShell(script) {
-  const raw = new Uint8Array(script.length * 2)
-  for (let i = 0; i < script.length; i++) {
-    const c = script.charCodeAt(i)
-    raw[i * 2] = c & 0xff
-    raw[i * 2 + 1] = c >> 8
-  }
-  return base64(raw)
-}
-
-function base64(raw) {
-  const abc = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
-  let out = ''
-  for (let i = 0; i < raw.length; i += 3) {
-    const n = (raw[i] << 16) | ((raw[i + 1] ?? 0) << 8) | (raw[i + 2] ?? 0)
-    out += abc[(n >> 18) & 63] + abc[(n >> 12) & 63]
-    out += i + 1 < raw.length ? abc[(n >> 6) & 63] : '='
-    out += i + 2 < raw.length ? abc[n & 63] : '='
-  }
-  return out
 }
