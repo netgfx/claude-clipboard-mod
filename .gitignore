@@ -7,3 +7,9 @@ tsconfig.json
 
 node_modules/
 *.log
+
+# OS and editor junk: never ship these in the plugin folder
+.DS_Store
+Thumbs.db
+desktop.ini
+__MACOSX/
