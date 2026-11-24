@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "clipboard-paste",
-      "source": "./plugins/clipboard-paste",
+      "source": "./",
       "description": "Paste an image, media file or copied files from the system clipboard into the Claude Code prompt (/paste or the band above the prompt)",
       "version": "0.1.0",
       "category": "productivity",
