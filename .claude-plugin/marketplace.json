@@ -3,14 +3,14 @@
   "owner": { "name": "Michael Dobekidis", "email": "djmid71@gmail.com", "url": "https://github.com/netgfx" },
   "metadata": {
     "description": "Claude Code mods for getting clipboard images, media and files into your prompts",
-    "version": "0.2.0"
+    "version": "0.2.1"
   },
   "plugins": [
     {
       "name": "powermods-clipboard",
       "source": "./",
       "description": "Paste an image, media file or copied files from the system clipboard into the Claude Code prompt",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "author": { "name": "Michael Dobekidis", "email": "djmid71@gmail.com", "url": "https://github.com/netgfx" },
       "homepage": "https://github.com/netgfx/claude-clipboard-mod",
       "repository": "https://github.com/netgfx/claude-clipboard-mod",
