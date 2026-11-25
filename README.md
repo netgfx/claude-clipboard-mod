@@ -69,6 +69,22 @@ Claude Code's own `Ctrl+V` (`Alt+V` on Windows) image paste still works. Use thi
 
 Everything stays on your machine unless you turn on `downloadUrls` and confirm a download. See [PRIVACY.md](PRIVACY.md) for the privacy statement.
 
+In short, for the directory's checks:
+
+- **Programs it runs:** only when you paste (`/paste`, or `v` or **paste** in the band):
+  - The clipboard reader for your system: on Windows `powershell -NoProfile -NonInteractive -STA -Command WINDOWS_READER`; on macOS and Linux `/bin/sh -c POSIX_READER sh <folder> <name> <MAC_READER>`, which runs `osascript` on macOS, or `wl-paste` or `xclip` on Linux. It reads the clipboard and saves an image to the capture folder. The readers are fixed text in `hooks/readers.js`; the folder and file name reach them as environment variables or arguments, never inside the script.
+  - `curl`, only with the `downloadUrls` option on and after you choose **Download** in the question that names the address and its host. It downloads that one copied `http` or `https` address, with fixed flags (`-fsSL --proto =http,https --proto-redir =http,https -m 30 --max-filesize 52428800`), to the capture folder. Then a fixed PowerShell line (`Move-Item` or `Remove-Item`, paths in environment variables) on Windows, or `mv -f --` or `rm -f --` on macOS and Linux, renames it to its type's extension or deletes it if it isn't an image, media file or PDF. Nothing downloaded is ever run.
+- **What it sends and where:** nothing, by default. The file paths of what you paste go into your next prompt (below), to Claude in your own session. With `downloadUrls` on and a download confirmed, curl sends a GET request for the copied address to its host, which sees your IP address and the URL. Apart from that address, no clipboard content, file or path is sent to any host.
+- **Conversation data it reads:** only the text of the prompt you send, to find its `[clip#N name]` markers, while clipboard items are waiting. It sends that text nowhere: it passes the changed prompt on to Claude Code.
+- **What it puts in prompts:** it submits no prompts of its own. In the prompt you send it replaces each marker with `[clipboard <kind> #N: <path>]` and adds one note listing each item's type, size and path, asking Claude to open them with the Read tool (details under "What it changes in your prompts").
+- **Hosts it contacts:** none by default. With `downloadUrls` on, the host of a copied address you confirm.
+- **Files it writes:** captured images, `data:` URIs and confirmed downloads, as `<project>/.claude/clipboard-paste/clip-<date>-<time>.<ext>`, plus a `.gitignore` containing `*` in that folder. That `.gitignore` is the only build, start-up, settings or instructions file it writes: it keeps the captures out of git. It writes no other file.
+- **Hooks:**
+  - `session.start`: registers `/paste`. Changes nothing.
+  - `command.run` for `/paste`: reads the clipboard, lists or clears the waiting items. Changes nothing else.
+  - `prompt.submit`: while clipboard items are waiting, swaps the markers for paths and adds the note above. Passes every other prompt on unchanged, and slash commands and other mods' prompts always.
+  - `ui.render` on the band above the prompt: draws its row there. Leaves the survey and other mods' rows alone.
+
 **When it reads the clipboard**
 
 Only when you run `/paste`, press `v` or click **paste** in the band. Never in the background.
@@ -81,7 +97,7 @@ Every program runs through `$.process.run` with an argument list. Values such as
 - **macOS and Linux**: `/bin/sh -c POSIX_READER sh <folder> <name> <MAC_READER>`. `POSIX_READER`, in `hooks/readers.js`, gets the folder, the file name and the macOS reader as its positional arguments. It runs `uname -s` and `mkdir -p`, then:
   - macOS: `osascript -l JavaScript -e MAC_READER <folder> <name>`, a JavaScript for Automation script that reads `NSPasteboard`.
   - Linux: `wl-paste --list-types` and `wl-paste --type image/png` on Wayland, or `xclip -selection clipboard -t TARGETS -o` and `xclip -selection clipboard -t image/png -o` on X11.
-- **Only with `downloadUrls` on and after you choose Download**: `curl -fsSL --proto =http,https -m 30 --max-filesize 52428800 -o <folder>/<name>.download -w %{content_type} <url>`. Then `cmd /d /c move /y` (Windows) or `mv -f` renames the download to its type's extension, or `cmd /d /c del /f /q` or `rm -f` deletes it when it isn't an image, media file or PDF.
+- **Only with `downloadUrls` on and after you choose Download**: `curl -fsSL --proto =http,https --proto-redir =http,https -m 30 --max-filesize 52428800 -o <folder>/<name>.download -w %{content_type} <url>`. Then, on Windows, `powershell -NoProfile -NonInteractive -Command PS_MOVE` (`Move-Item -LiteralPath $env:CP_FROM -Destination $env:CP_TO -Force`) renames the download to its type's extension, or `PS_DELETE` (`Remove-Item -LiteralPath $env:CP_FROM -Force`) deletes it when it isn't an image, media file or PDF. On macOS and Linux, `mv -f --` and `rm -f --` do the same.
 
 **Hosts it reaches**
 
