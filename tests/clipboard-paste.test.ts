@@ -189,6 +189,7 @@ test('with downloadUrls on, a confirmed image URL is downloaded with curl and ke
   expect(curl[curl.length - 1]).toBe('https://example.com/cat')
   expect(curl).toContain('=http,https')
   expect(curl).toContain('--max-filesize')
+  expect(curl.slice(1, 6)).toEqual(['-fsSL', '--proto', '=http,https', '--proto-redir', '=http,https'])
   // The rename is a fixed PowerShell line with both paths in the environment; cmd.exe never runs
   const moveAt = seen.argv.findIndex((a) => a[0] === 'powershell' && a[a.length - 1].startsWith('Move-Item'))
   expect(seen.argv[moveAt]).toEqual(['powershell', '-NoProfile', '-NonInteractive', '-Command', 'Move-Item -LiteralPath $env:CP_FROM -Destination $env:CP_TO -Force'])

@@ -298,7 +298,7 @@ async function download($, os, dir, base, url) {
   let r
   try {
     r = await $.process.run(
-      ['curl', '-fsSL', '--proto', '=http,https', '-m', '30', '--max-filesize', MAX_DOWNLOAD_BYTES, '-o', tmp, '-w', '%{content_type}', url],
+      ['curl', '-fsSL', '--proto', '=http,https', '--proto-redir', '=http,https', '-m', '30', '--max-filesize', MAX_DOWNLOAD_BYTES, '-o', tmp, '-w', '%{content_type}', url],
       { timeoutMs: 40_000 },
     )
   } catch (err) {
