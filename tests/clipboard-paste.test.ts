@@ -189,8 +189,12 @@ test('with downloadUrls on, a confirmed image URL is downloaded with curl and ke
   expect(curl[curl.length - 1]).toBe('https://example.com/cat')
   expect(curl).toContain('=http,https')
   expect(curl).toContain('--max-filesize')
-  const move = seen.argv.find((a) => a[0] === 'cmd')!
-  expect(move[move.length - 1]).toMatch(/\\clip-\d{8}-\d{6}-\d{3}\.jpg$/)
+  // The rename is a fixed PowerShell line with both paths in the environment; cmd.exe never runs
+  const moveAt = seen.argv.findIndex((a) => a[0] === 'powershell' && a[a.length - 1].startsWith('Move-Item'))
+  expect(seen.argv[moveAt]).toEqual(['powershell', '-NoProfile', '-NonInteractive', '-Command', 'Move-Item -LiteralPath $env:CP_FROM -Destination $env:CP_TO -Force'])
+  expect(seen.envs[moveAt].CP_FROM).toMatch(/\\clip-\d{8}-\d{6}-\d{3}\.download$/)
+  expect(seen.envs[moveAt].CP_TO).toMatch(/\\clip-\d{8}-\d{6}-\d{3}\.jpg$/)
+  expect(seen.argv.some((a) => a[0] === 'cmd')).toBe(false)
   expect(seen.fills[0].text).toMatch(/^\[clip#1 clip-.*\.jpg\] $/)
 })
 
@@ -201,7 +205,25 @@ test('with downloadUrls on, a confirmed URL that is a web page is refused', { op
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' } as any)
   await $.command.run({ command: 'paste', args: '' } as any)
   expect(seen.toasts[0]).toMatch(/text\/html, not an image/)
-  expect(seen.argv.some((a) => a[0] === 'rm')).toBe(true)
+  const rm = seen.argv.find((a) => a[0] === 'rm')!
+  expect(rm.slice(0, 3)).toEqual(['rm', '-f', '--'])
+  expect(rm[3]).toMatch(/\/clip-\d{8}-\d{6}-\d{3}\.download$/)
+})
+
+test('on Windows, a refused download is deleted with a fixed PowerShell line', { options: { downloadUrls: true } }, async ($, on) => {
+  const seen = fresh()
+  stubs(on, 'windows', (argv) => {
+    if (argv[0] === 'powershell' && argv[argv.length - 1].includes('CP_DIR')) return JSON.stringify({ items: [], url: 'https://example.com/' })
+    if (argv[0] === 'curl') return 'text/html; charset=UTF-8'
+    return ''
+  }, seen)
+  answerAsk(on, 'Download', [])
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: 'C:\\work' } as any)
+  await $.command.run({ command: 'paste', args: '' } as any)
+  const delAt = seen.argv.findIndex((a) => a[0] === 'powershell' && a[a.length - 1].startsWith('Remove-Item'))
+  expect(seen.argv[delAt]).toEqual(['powershell', '-NoProfile', '-NonInteractive', '-Command', 'Remove-Item -LiteralPath $env:CP_FROM -Force'])
+  expect(seen.envs[delAt].CP_FROM).toMatch(/\\clip-\d{8}-\d{6}-\d{3}\.download$/)
+  expect(seen.argv.some((a) => a[0] === 'cmd')).toBe(false)
 })
 
 test('the band pastes, lists and removes items in the terminal and on Desktop', async ($, on) => {

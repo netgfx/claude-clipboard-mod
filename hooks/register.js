@@ -38,6 +38,11 @@ const EXTENSIONS = {
 }
 const ATTACHABLE = /^(image|video|audio)\/|^application\/pdf$/
 
+// Windows, fixed text run with powershell -Command: rename or delete a download.
+// The paths arrive in the environment variables CP_FROM and CP_TO.
+const PS_MOVE = 'Move-Item -LiteralPath $env:CP_FROM -Destination $env:CP_TO -Force'
+const PS_DELETE = 'Remove-Item -LiteralPath $env:CP_FROM -Force'
+
 let platform // 'windows' | 'posix', cached until the next reload
 let busy = false // one clipboard read at a time
 let downloadUrls = false // the downloadUrls option: fetch a copied web address, after asking
@@ -245,13 +250,16 @@ async function runReader($, os, dir, base) {
   // environment variables. macOS and Linux: POSIX_READER through /bin/sh, with the
   // folder, the file name and the macOS reader as its positional arguments $1-$3.
   // No value is ever spliced into a script's text.
-  const argv = os === 'windows'
-    ? ['powershell', '-NoProfile', '-NonInteractive', '-STA', '-Command', WINDOWS_READER]
-    : ['/bin/sh', '-c', POSIX_READER, 'sh', dir, base, MAC_READER]
-  const env = os === 'windows' ? { CP_DIR: dir, CP_BASE: base } : undefined
   let r
   try {
-    r = await $.process.run(argv, { timeoutMs: 20_000, ...(env ? { env } : {}) })
+    if (os === 'windows') {
+      r = await $.process.run(['powershell', '-NoProfile', '-NonInteractive', '-STA', '-Command', WINDOWS_READER], {
+        timeoutMs: 20_000,
+        env: { CP_DIR: dir, CP_BASE: base },
+      })
+    } else {
+      r = await $.process.run(['/bin/sh', '-c', POSIX_READER, 'sh', dir, base, MAC_READER], { timeoutMs: 20_000 })
+    }
   } catch (err) {
     return { items: [], reason: 'Could not start the clipboard reader: ' + err.message }
   }
@@ -304,9 +312,12 @@ async function download($, os, dir, base, url) {
   }
   const dest = joinPath(os, dir, base + (EXTENSIONS[mime] ?? '.bin'))
   try {
+    // Give the download its type's extension. On Windows a fixed PowerShell line
+    // does it, with both paths in environment variables, so no path ever reaches a
+    // command line that cmd.exe would parse.
     const moved = os === 'windows'
-      ? await $.process.run(['cmd', '/d', '/c', 'move', '/y', tmp, dest], { timeoutMs: 10_000 })
-      : await $.process.run(['mv', '-f', tmp, dest], { timeoutMs: 10_000 })
+      ? await $.process.run(['powershell', '-NoProfile', '-NonInteractive', '-Command', PS_MOVE], { timeoutMs: 10_000, env: { CP_FROM: tmp, CP_TO: dest } })
+      : await $.process.run(['mv', '-f', '--', tmp, dest], { timeoutMs: 10_000 })
     if (moved.exitCode !== 0) return { items: [{ kind: mime.startsWith('image/') ? 'image' : 'file', path: tmp }] }
   } catch {
     return { items: [{ kind: mime.startsWith('image/') ? 'image' : 'file', path: tmp }] }
@@ -314,9 +325,12 @@ async function download($, os, dir, base, url) {
   return { items: [{ kind: mime.startsWith('image/') ? 'image' : 'file', path: dest }] }
 }
 
+// Deletes a refused download. On Windows a fixed PowerShell line does it, with the
+// path in an environment variable.
 async function removeFile($, os, path) {
   try {
-    await $.process.run(os === 'windows' ? ['cmd', '/d', '/c', 'del', '/f', '/q', path] : ['rm', '-f', path], { timeoutMs: 10_000 })
+    if (os === 'windows') await $.process.run(['powershell', '-NoProfile', '-NonInteractive', '-Command', PS_DELETE], { timeoutMs: 10_000, env: { CP_FROM: path } })
+    else await $.process.run(['rm', '-f', '--', path], { timeoutMs: 10_000 })
   } catch {
     // leftover temp file in a git-ignored folder: harmless
   }
